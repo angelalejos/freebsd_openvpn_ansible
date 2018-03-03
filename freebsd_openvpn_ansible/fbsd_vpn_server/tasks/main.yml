@@ -1,0 +1,68 @@
+---
+- name: Upgrade the fbsd system.
+  command: /usr/sbin/pkg update
+
+- name: Install OpenVPN
+  pkgng: name=openvpn state=present
+
+- name: Create a directory in /usr/local/etc/openvpn
+  file: path=/usr/local/etc/openvpn state=directory
+
+- name: Copy the default configuration file to /usr/local/etc/openvpn
+  command: /bin/cp /usr/local/share/examples/openvpn/sample-config-files/server.conf /usr/local/etc/openvpn/
+  
+- name: Copy the easy-rsa directory recursively inside /usr/local/etc/openvpn/
+  command: /bin/cp -r /usr/local/share/easy-rsa /usr/local/etc/openvpn/  
+
+- name: Send the already configured vars file to the server
+  template: src=templates/vars.j2 dest=/usr/local/etc/openvpn/easy-rsa/vars
+
+- name: Change to sh
+  command: /bin/sh
+
+- name: Execute the easyrsa.real init-pki script. 
+  shell: ./easyrsa.real init-pki chdir=/usr/local/etc/openvpn/easy-rsa
+
+- name: Execute the script easyrsa.real build-ca
+  shell: echo {{ openvpn_server_name }} |  ./easyrsa.real build-ca nopass chdir=/usr/local/etc/openvpn/easy-rsa
+
+- name: Execute the script easyrsa.real build-server-full
+  shell: ./easyrsa.real build-server-full {{ openvpn_server_name }} nopass chdir=/usr/local/etc/openvpn/easy-rsa
+
+- name: Execute the script easyrsa.real gen-dh
+  command: ./easyrsa.real gen-dh chdir=/usr/local/etc/openvpn/easy-rsa
+  
+- name: Create the directory keys inside /usr/local/etc/openvpn/
+  file: path=/usr/local/etc/openvpn/keys state=directory
+
+- name: Move dh.pem, ca.crt, server.crt, server.key, into /usr/local/etc/openvpn/keys
+  command: /bin/cp {{ pki_dir }}/dh.pem {{ pki_dir }}/ca.crt {{ pki_issued_dir }}/{{ openvpn_server_name }}.crt {{ pki_private_dir }}/{{ openvpn_server_name }}.key {{ keys_dir }}
+
+- name: Remove the default server.conf from the openvpn dir
+  command: /bin/mv {{ openvpn_dir }}/server.conf openvpn.conf 
+
+- name: Send the already configured file openvpn.j2 to the server
+  template: src=templates/openvpn.j2 dest={{ openvpn_dir }}/openvpn.conf
+
+- name: Install gcc5
+  pkgng: name=gcc5 state=present
+
+- name: Change rc.conf file
+  blockinfile:
+    dest: /etc/rc.conf
+    block: |
+      firewall_enable="YES"
+      firewall_type="open"
+      gateway_enable="YES"
+      natd_enable="YES"      
+      natd_interface="{{ iface_name }}"
+      natd_flags="-dynamic -m"
+      openvpn_enable="YES"      
+
+- name: Start openvpn service
+  service: name=openvpn state=started
+
+- name: Reboot 
+  command: shutdown -r now
+
+
