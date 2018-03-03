@@ -1,0 +1,9 @@
+---
+openvpn_server_name: freebsd_openvpn
+openvpn_server_ip: <server-ip-addr>
+openvpn_dir: /usr/local/etc/openvpn
+pki_dir: /usr/local/etc/openvpn/easy-rsa/pki
+pki_issued_dir: /usr/local/etc/openvpn/easy-rsa/pki/issued
+pki_private_dir: /usr/local/etc/openvpn/easy-rsa/pki/private
+keys_dir: /usr/local/etc/openvpn/keys
+iface_name: <iface-name>
